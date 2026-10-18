@@ -33,6 +33,11 @@
     }
   },
   "entity": {
+    "binary_sensor": {
+      "online": {
+        "name": "Online"
+      }
+    },
     "sensor": {
       "impressions_completed": {
         "name": "Impressions completed",
@@ -58,7 +63,8 @@
         "state": {
           "idle": "[%key:common::state::idle%]",
           "printing": "Printing",
-          "stopped": "[%key:common::state::stopped%]"
+          "stopped": "[%key:common::state::stopped%]",
+          "offline": "Offline"
         }
       },
       "uptime": {

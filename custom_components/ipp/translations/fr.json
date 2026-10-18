@@ -1,0 +1,75 @@
+{
+  "config": {
+    "abort": {
+      "already_configured": "L'appareil est déjà configuré",
+      "cannot_connect": "Échec de connexion",
+      "connection_upgrade": "Échec de connexion à l'imprimante : une mise à niveau de la connexion est requise.",
+      "ipp_error": "Erreur IPP rencontrée.",
+      "ipp_version_error": "Version IPP non prise en charge par l'imprimante.",
+      "parse_error": "Impossible d'analyser la réponse de l'imprimante.",
+      "unique_id_required": "Identifiant unique de l'appareil manquant, requis pour la découverte."
+    },
+    "error": {
+      "cannot_connect": "Échec de connexion",
+      "connection_upgrade": "Échec de connexion à l'imprimante. Réessayez en cochant l'option SSL/TLS."
+    },
+    "flow_title": "{name}",
+    "step": {
+      "user": {
+        "data": {
+          "base_path": "Chemin relatif vers l'imprimante",
+          "host": "Hôte",
+          "port": "Port",
+          "ssl": "Utilise un certificat SSL",
+          "verify_ssl": "Vérifier le certificat SSL"
+        },
+        "description": "Configurez votre imprimante via le protocole IPP pour l'intégrer à Home Assistant.",
+        "title": "Associer votre imprimante"
+      },
+      "zeroconf_confirm": {
+        "description": "Voulez-vous configurer {name} ?",
+        "title": "Imprimante découverte"
+      }
+    }
+  },
+  "entity": {
+    "binary_sensor": {
+      "online": {
+        "name": "En ligne"
+      }
+    },
+    "sensor": {
+      "impressions_completed": {
+        "name": "Impressions terminées",
+        "unit_of_measurement": "impressions"
+      },
+      "impressions_completed_full_color": {
+        "name": "Impressions couleur terminées",
+        "unit_of_measurement": "impressions"
+      },
+      "impressions_completed_monochrome": {
+        "name": "Impressions monochromes terminées",
+        "unit_of_measurement": "impressions"
+      },
+      "media_sheets_completed": {
+        "name": "Feuilles imprimées",
+        "unit_of_measurement": "feuilles"
+      },
+      "pages_completed": {
+        "name": "Pages imprimées",
+        "unit_of_measurement": "pages"
+      },
+      "printer": {
+        "state": {
+          "idle": "Inactive",
+          "printing": "Impression en cours",
+          "stopped": "Arrêtée",
+          "offline": "Hors ligne"
+        }
+      },
+      "uptime": {
+        "name": "Temps de fonctionnement"
+      }
+    }
+  }
+}

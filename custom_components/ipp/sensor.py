@@ -14,7 +14,7 @@ from homeassistant.components.sensor import (
     SensorStateClass,
 )
 from homeassistant.const import ATTR_LOCATION, PERCENTAGE, EntityCategory
-from homeassistant.core import HomeAssistant
+from homeassistant.core import CALLBACK_TYPE, HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.typing import StateType
 
@@ -29,8 +29,10 @@ from .const import (
     ATTR_STATE_REASON,
     ATTR_URI_SUPPORTED,
 )
-from .coordinator import IPPConfigEntry
+from .coordinator import IPPConfigEntry, IPPDataUpdateCoordinator
 from .entity import IPPEntity
+
+STATE_OFFLINE = "offline"
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -40,6 +42,8 @@ class IPPSensorEntityDescription(SensorEntityDescription):
     value_fn: Callable[[Printer], StateType | datetime]
     attributes_fn: Callable[[Printer], dict[Any, StateType]] = lambda _: {}
     exists_fn: Callable[[Printer], bool] = lambda _: True
+    # Stays available and reports STATE_OFFLINE while the printer is off.
+    reports_offline: bool = False
 
 
 def _get_marker_attributes_fn(
@@ -60,7 +64,8 @@ PRINTER_SENSORS: tuple[IPPSensorEntityDescription, ...] = (
         name=None,
         translation_key="printer",
         device_class=SensorDeviceClass.ENUM,
-        options=["idle", "printing", "stopped"],
+        options=["idle", "printing", "stopped", STATE_OFFLINE],
+        reports_offline=True,
         attributes_fn=lambda printer: {
             ATTR_INFO: printer.info.printer_info,
             ATTR_SERIAL: printer.info.serial,
@@ -143,12 +148,52 @@ async def async_setup_entry(
 ) -> None:
     """Set up IPP sensor based on a config entry."""
     coordinator = entry.runtime_data
+    # The status sensor can always be created; the others depend on what the
+    # printer reports (markers, counters), so they need its data.
+    async_add_entities(
+        [
+            IPPSensor(coordinator, description)
+            for description in PRINTER_SENSORS
+            if description.reports_offline
+        ],
+        True,
+    )
+
+    if coordinator.data is not None:
+        async_add_entities(_printer_data_sensors(coordinator), True)
+        return
+
+    # Printer offline since startup: add those sensors once it first answers.
+    unsub: CALLBACK_TYPE | None = None
+
+    @callback
+    def _add_when_online() -> None:
+        nonlocal unsub
+        if coordinator.data is None or unsub is None:
+            return
+        unsub()
+        unsub = None
+        async_add_entities(_printer_data_sensors(coordinator), True)
+
+    @callback
+    def _unsub_on_unload() -> None:
+        if unsub is not None:
+            unsub()
+
+    unsub = coordinator.async_add_listener(_add_when_online)
+    entry.async_on_unload(_unsub_on_unload)
+
+
+def _printer_data_sensors(coordinator: IPPDataUpdateCoordinator) -> list[SensorEntity]:
+    """Return the sensors built from the printer data."""
+    assert coordinator.data is not None
     sensors: list[SensorEntity] = [
         IPPSensor(
             coordinator,
             description,
         )
         for description in PRINTER_SENSORS
+        if not description.reports_offline
     ]
 
     for index, marker in enumerate(coordinator.data.markers):
@@ -183,7 +228,7 @@ async def async_setup_entry(
         if description.exists_fn(coordinator.data)
     )
 
-    async_add_entities(sensors, True)
+    return sensors
 
 
 class IPPSensor(IPPEntity, SensorEntity):
@@ -193,12 +238,24 @@ class IPPSensor(IPPEntity, SensorEntity):
 
     @property
     @override
+    def available(self) -> bool:
+        """Return if the entity is available."""
+        if self.entity_description.reports_offline:
+            return self.coordinator.last_update_success
+        return super().available
+
+    @property
+    @override
     def extra_state_attributes(self) -> dict[str, Any]:
         """Return the state attributes of the entity."""
+        if self.coordinator.data is None:
+            return {}
         return self.entity_description.attributes_fn(self.coordinator.data)
 
     @property
     @override
     def native_value(self) -> StateType | datetime:
         """Return the state of the sensor."""
+        if not self.printer_online:
+            return STATE_OFFLINE if self.entity_description.reports_offline else None
         return self.entity_description.value_fn(self.coordinator.data)

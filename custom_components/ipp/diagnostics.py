@@ -20,5 +20,6 @@ async def async_get_config_entry_diagnostics(
             },
             "unique_id": config_entry.unique_id,
         },
-        "data": coordinator.data.as_dict(),
+        "online": coordinator.online,
+        "data": coordinator.data.as_dict() if coordinator.data is not None else None,
     }
